@@ -44,9 +44,16 @@ def phase_two(string):
 	# backslash followed immediately by newline
 	i = 0
 	translated_string = ""
+	# this is a really dirty way of taking care of line number errors for backslash + \n sequences
+	line_debt = 0
 	while i < len(string):
 		if string[i] == "\\" and i < len(string) - 1 and string[i + 1] == "\n":
 			i += 2
+			line_debt += 1
+		elif string[i] == "\n":
+			translated_string += "\n" * (1 + line_debt)
+			line_debt = 0
+			i += 1
 		else:
 			translated_string += string[i]
 			i += 1
@@ -54,27 +61,34 @@ def phase_two(string):
 
 # lexer rules
 lexer_rules = [
-	"COMMENT", r"//.*(?:\n|$)",
+	"COMMENT", r"//.*(?=\n|$)",
 	"MCOMMENT", r"/\*(?s:.)*\*/",
 	"IDENTIFIER", r"[a-zA-Z_$][a-zA-Z0-9_$]*",
-	"NUMBER", r"(?:0x|0b)?[0-9a-fA-F]+(?:.[0-9a-fA-F]+)?(?:[eEpP][0-9a-fA-F]+)?(?:u|U|l|L|ul|UL|ll|LL|ull|ULL|f|F)",
+	"NUMBER", r"(?:0x|0b)?[0-9a-fA-F]+(?:.[0-9a-fA-F]+)?(?:[eEpP][0-9a-fA-F]+)?(?:u|U|l|L|ul|UL|ll|LL|ull|ULL|f|F)?",
 	"STRING", r"\"(\\.|[^\"\\])*\"",
 	"CHAR", r"'(\\.|[^\"\\])'",
 	"PREPROCESSING_DIRECTIVE", r"(?:#|%:)[a-z]+",
-	"PUNCTUATION", r"[,.<>?/=;:~!#%^&*(){}\[\]]",
-	"WHITESPACE", r"\s+"
+	"PUNCTUATION", r"[,.<>?/=;:~!#%^&*\-+(){}\[\]]",
+	"NEWLINE", r"\n",
+	"WHITESPACE", r"[^\S\n]+" #r"\s+"
 ]
 lexer_ignores = {"COMMENT", "MCOMMENT", "WHITESPACE"}
 lexer_regex = ""
 class Token:
-	def __init__(self, token, value):
-		self.token = token
+	def __init__(self, token_type, value, line):
+		self.token_type = token_type
 		self.value = value
+		self.line = line
 		# only digraph that needs to be handled
-		if token == "PREPROCESSING_DIRECTIVE":
+		if token_type == "PREPROCESSING_DIRECTIVE":
 			self.value = re.sub(r"^%:", "#", value)
+		elif token_type == "NEWLINE":
+			self.value = ""
 	def __repr__(self):
-		return "{} {}".format(self.token, self.value).strip()
+		if self.value == "":
+			return "{} {}".format(self.token_type, self.line)
+		else:
+			return "{} {} {}".format(self.token_type, self.value, self.line)
 def init_lexer():
 	global lexer_regex
 	for i in range(0, len(lexer_rules), 2):
@@ -87,25 +101,39 @@ def phase_three(string):
 	# tokenization
 	tokens = []
 	i = 0
+	line = 1
 	while True:
-		if i >= len(string) - 1:
+		if i >= len(string):
 			break
 		m = lexer_regex.match(string, i)
 		if m:
 			groupname = m.lastgroup
 			if groupname not in lexer_ignores:
-				tokens.append(Token(groupname, m.group(groupname)))
+				tokens.append(Token(groupname, m.group(groupname), line))
+			if groupname == "NEWLINE":
+				line += 1
+			if groupname == "MCOMMENT":
+				line += m.group(groupname).count("\n")
 			i = m.end()
 		else:
 			print(string)
 			print(i)
 			print(tokens)
-			raise Exception("shit")
+			print("\n\n{}\n\n".format(string[i:i+20]))
+			raise Exception("lexer error")
 	return tokens
 
-def phase_four(string):
-	# preprocessing
-	pass
+def peek_tokens(tokens, seq):
+	if len(tokens) < len(seq):
+		return False
+	for i, token in enumerate(seq):
+		if type(seq[i]) is tuple:
+			if not (tokens[i].token_type == seq[i][0] and tokens[i].value == seq[i][1]):
+				return False
+		elif tokens[i].token_type != seq[i]:
+			return False
+	return True
+	
 
 def process_file(file):
 	#
@@ -116,30 +144,54 @@ def process_file(file):
 	# All that's needed is understanding #include directives in a file. In order to do that, only
 	# primitive and bare-minimum tokenization is required.
 	#
+
+	# get file contents
 	content = None
 	with open(file, "r") as f:
 		content = f.read()
 	print(content)
 	print("-" * 20)
+	# trigraphs
 	content = phase_one(content)
 	print(content)
 	print("-" * 20)
+	# backslash newline
 	content = phase_two(content)
 	print(content)
 	print("-" * 20)
+	# tokenize
 	tokens = phase_three(content)
-	print(tokens)
+	#print(tokens)
+	for token in tokens:
+		print(token)
+	print("-" * 20)
+	# process the file
+	while len(tokens) > 0:
+		token = tokens.pop(0)
+		if token.token_type == "PREPROCESSING_DIRECTIVE" and token.value == "#include":
+			if len(tokens) == 0:
+				raise Exception("parse error: expected token following #include directive, found nothing")
+			elif peek_tokens(tokens, ("STRING", "NEWLINE")):
+				print("#include", tokens[:2])
+			elif peek_tokens(tokens, (("PUNCTUATION", "<"), "IDENTIFIER", ("PUNCTUATION", ">"), "NEWLINE")):
+				print("#include", tokens[:4])
+			else:
+				raise Exception("parse error: unexpected token sequence after #include directive. This may be a valid preprocessing directive and shortcoming of the preprocessor {}.".format(token.line))
+		else:
+			pass
 
 def main():
 	# <startfile> [search directories]
-	if len(sys.argv) == 1:
+	argv = sys.argv
+	#argv = ["main.py", "test.c"]
+	if len(argv) == 1:
 		print_help()
 		return
-	if sys.argv[1] == "-h" or sys.argv[1] == "--help":
+	if argv[1] == "-h" or argv[1] == "--help":
 		print_help()
 		return
-	root = sys.argv[1]
-	path = sys.argv[2:]
+	root = argv[1]
+	path = argv[2:]
 
 	init_lexer()
 	process_file(root)
