@@ -175,21 +175,48 @@ class Processor:
 		self.all_files = set()
 		for root, dirs, files in os.walk(base):
 			for f in files:
-				if os.path.splitext(f)[1] in [".c", ".cpp", ".h", ".hpp"]:
+				if os.path.splitext(f)[1] in {".c", ".cpp", ".h", ".hpp"}:
 					self.all_files.add(f)
 		self.visited = set()
-		# get filename with os.path.splitext(os.path.basename(file_path))[0]
-	def queue_all(self, queue, file_path):
+		self.nodes = {
+			# base: { i, dependencies }
+		}
+		self.process_file(file_path)
+		N = len(self.nodes)
+		self.matrix = [[0 for _ in range(N)] for _ in range(N)]
+		for key in self.nodes:
+			node = self.nodes[key]
+			row = node["i"]
+			for d in node["dependencies"]:
+				self.matrix[row][self.nodes[d]["i"]] = 1
+		# deep copy
+		self.matrix_closure = [[col for col in row] for row in self.matrix]
+		G = self.matrix_closure
+		# floyd-warshall
+		for k in range(N):
+			for i in range(N):
+				for j in range(N):
+					G[i][j] = G[i][j] or (G[i][k] and G[k][j])
+	@staticmethod
+	def queue_all(queue, file_path):
 		filename = os.path.splitext(file_path)[0]
-		for ext in [".c", ".cpp", ".h", ".hpp"]:
+		for ext in [".h", ".hpp", ".c", ".cpp"]:
 			path = filename + ext
 			if os.path.exists(path):
 				queue.append(path)
 	def process_file(self, file_path):
-		if os.path.basename(file_path) in self.visited:
+		file_name = os.path.basename(file_path)
+		file_basename = os.path.splitext(os.path.basename(file_path))[0]
+		directory = os.path.dirname(file_path)
+		if file_name in self.visited:
 			return
-		self.visited.add(os.path.basename(file_path))
-		print("=" * 10, file_path)
+		self.visited.add(file_name)
+		if file_basename not in self.nodes:
+			self.nodes[file_basename] = {
+				"i": len(self.nodes),
+				"dependencies": set()
+			}
+		print("=" * 10, file_name, "=" * 10)
 		#
 		# There are better ways to do the input processing that would allow looping though the input only
 		# once and not using extra memory, but it won't make enough of a performance difference to warrant.
@@ -203,19 +230,12 @@ class Processor:
 		content = None
 		with open(file_path, "r") as f:
 			content = f.read()
-		##print(content)
-		##print("-" * 20)
 		# trigraphs
 		content = phase_one(content)
-		##print(content)
-		##print("-" * 20)
 		# backslash newline
 		content = phase_two(content)
-		##print(content)
-		##print("-" * 20)
 		# tokenize
 		tokens = phase_three(content)
-		#print(tokens)
 		##for token in tokens:
 		##	print(token)
 		##print("-" * 20)
@@ -276,17 +296,22 @@ class Processor:
 				# need to consume the whole line of tokens
 				while token.token_type != "NEWLINE" and len(tokens) > 0:
 					token = tokens.pop(0)
-		# process the files (DFS)
-		base = os.path.dirname(file_path)
+		# process the files d-f
 		for include in process_queue:
-			path = include #os.path.join(base, include)
-			self.process_file(path)
+			#path = os.path.join(directory, include)
+			#self.process_file(path)
+			self.process_file(include)
+			include_component = os.path.splitext(os.path.basename(include))[0]
+			if include_component == file_basename:
+				# can happen if yyy.c includes yyy.h
+				continue
+			self.nodes[file_basename]["dependencies"].add(include_component)
 
 def main():
 	# <startfile> [search directories]
 	argv = sys.argv
 	#argv = ["main.py", "test.c"]
-	argv = ["main.py", "..\Tape\main.cpp"]
+	#argv = ["main.py", "..\Tape\main.cpp"]
 	#argv = ["main.py", "..\\Tape\\src\\token.h"]
 	if len(argv) == 1:
 		print_help()
@@ -299,12 +324,20 @@ def main():
 
 	init_lexer()
 	p = Processor(root)
-	p.process_file(root)
 
 	# this is mainly for dev/debugging; make sure no components are missed in traversal
 	#print("visited: ", p.visited)
 	#print("all: ", p.all_files)
 	print("xor: ", p.all_files ^ p.visited)
+	#print(p.nodes)
+	for key in p.nodes:
+		print("{:20} {}".format(key, p.nodes[key]))
+	labels = [k for k in p.nodes.keys()]
+	for i, row in enumerate(p.matrix):
+		print("{:>20} {}".format(labels[i], row))
+	print()
+	for i, row in enumerate(p.matrix_closure):
+		print("{:>20} {}".format(labels[i], row))
 
 main()
 
