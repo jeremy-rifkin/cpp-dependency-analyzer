@@ -1,3 +1,4 @@
+import colorama
 from enum import Enum
 import os
 import re
@@ -329,15 +330,41 @@ def main():
 	#print("visited: ", p.visited)
 	#print("all: ", p.all_files)
 	print("xor: ", p.all_files ^ p.visited)
-	#print(p.nodes)
 	for key in p.nodes:
 		print("{:20} {}".format(key, p.nodes[key]))
 	labels = [k for k in p.nodes.keys()]
+	print()
+	#for i, row in enumerate(p.matrix):
+	#	print("{:>20} {}".format(labels[i], row))
+	#print()
+	#for i, row in enumerate(p.matrix_closure):
+	#	print("{:>20} {}".format(labels[i], row))
 	for i, row in enumerate(p.matrix):
-		print("{:>20} {}".format(labels[i], row))
+		print("{:>20} ".format(labels[i]), end="")
+		for j, n in enumerate(row):
+			if i == j:
+				print("{}{}{} ".format(colorama.Fore.BLUE, "#" if n else "~", colorama.Style.RESET_ALL), end="")
+			else:
+				print("{} ".format("#" if n else "~"), end="")
+		print()
 	print()
 	for i, row in enumerate(p.matrix_closure):
-		print("{:>20} {}".format(labels[i], row))
+		print("{:>20} ".format(labels[i]), end="")
+		for j, n in enumerate(row):
+			if i == j:
+				print("{}{}{} ".format(colorama.Fore.BLUE, "#" if n else "~", colorama.Style.RESET_ALL), end="")
+			else:
+				print("{} ".format("#" if n else "~"), end="")
+		print()
+	print()
+	print("direct density: {:.2f}%".format(sum([sum(row) for row in p.matrix]) / len(p.matrix)**2))
+	print("indirect density: {:.2f}%".format(sum([sum(row) for row in p.matrix_closure]) / len(p.matrix_closure)**2))
+	cycles = 0
+	for i in range(len(p.matrix_closure)):
+		if p.matrix_closure[i][i]:
+			cycles += 1
+	print("cyclic dependencies: {}".format("yes" if cycles > 0 else "no"))
+
 
 main()
 
