@@ -179,9 +179,7 @@ class Processor:
 				if os.path.splitext(f)[1] in {".c", ".cpp", ".h", ".hpp"}:
 					self.all_files.add(f)
 		self.visited = set()
-		self.nodes = {
-			# base: { i, dependencies }
-		}
+		self.nodes = {}
 		self.process_file(file_path)
 		N = len(self.nodes)
 		self.matrix = [[0 for _ in range(N)] for _ in range(N)]
@@ -237,9 +235,6 @@ class Processor:
 		content = phase_two(content)
 		# tokenize
 		tokens = phase_three(content)
-		##for token in tokens:
-		##	print(token)
-		##print("-" * 20)
 		# process the file
 		# Preprocessor directives are only valid if they are at the beginning of a line. Code makes
 		# sure the next token is always at the start of the line going into each loop iteration.
@@ -299,8 +294,6 @@ class Processor:
 					token = tokens.pop(0)
 		# process the files d-f
 		for include in process_queue:
-			#path = os.path.join(directory, include)
-			#self.process_file(path)
 			self.process_file(include)
 			include_component = os.path.splitext(os.path.basename(include))[0]
 			if include_component == file_basename:
@@ -308,12 +301,26 @@ class Processor:
 				continue
 			self.nodes[file_basename]["dependencies"].add(include_component)
 
+def print_header(p, labels):
+	print(" " * 20, end="")
+	for i in range(len(p.matrix)):
+		print(" {}".format(labels[i][0]), end="")
+	print()
+
+def print_matrix(matrix, labels):
+	for i, row in enumerate(matrix):
+		print("{:>20} ".format(labels[i]), end="")
+		for j, n in enumerate(row):
+			if i == j:
+				print("{}{}{} ".format(colorama.Fore.BLUE, "#" if n else "~", colorama.Style.RESET_ALL), end="")
+			else:
+				print("{} ".format("#" if n else "~"), end="")
+		print()
+	print()
+
 def main():
 	# <startfile> [search directories]
 	argv = sys.argv
-	#argv = ["main.py", "test.c"]
-	#argv = ["main.py", "..\Tape\main.cpp"]
-	#argv = ["main.py", "..\\Tape\\src\\token.h"]
 	if len(argv) == 1:
 		print_help()
 		return
@@ -332,39 +339,18 @@ def main():
 	print("xor: ", p.all_files ^ p.visited)
 	for key in p.nodes:
 		print("{:20} {}".format(key, p.nodes[key]))
+	print()
 	labels = [k for k in p.nodes.keys()]
-	print()
-	#for i, row in enumerate(p.matrix):
-	#	print("{:>20} {}".format(labels[i], row))
-	#print()
-	#for i, row in enumerate(p.matrix_closure):
-	#	print("{:>20} {}".format(labels[i], row))
-	for i, row in enumerate(p.matrix):
-		print("{:>20} ".format(labels[i]), end="")
-		for j, n in enumerate(row):
-			if i == j:
-				print("{}{}{} ".format(colorama.Fore.BLUE, "#" if n else "~", colorama.Style.RESET_ALL), end="")
-			else:
-				print("{} ".format("#" if n else "~"), end="")
-		print()
-	print()
-	for i, row in enumerate(p.matrix_closure):
-		print("{:>20} ".format(labels[i]), end="")
-		for j, n in enumerate(row):
-			if i == j:
-				print("{}{}{} ".format(colorama.Fore.BLUE, "#" if n else "~", colorama.Style.RESET_ALL), end="")
-			else:
-				print("{} ".format("#" if n else "~"), end="")
-		print()
-	print()
-	print("direct density: {:.2f}%".format(sum([sum(row) for row in p.matrix]) / len(p.matrix)**2))
-	print("indirect density: {:.2f}%".format(sum([sum(row) for row in p.matrix_closure]) / len(p.matrix_closure)**2))
+	print_header(p, labels)
+	print_matrix(p.matrix, labels)
+	print_header(p, labels)
+	print_matrix(p.matrix_closure, labels)
+	print("direct density: {:.0f}%".format(100 * sum([sum(row) for row in p.matrix]) / len(p.matrix)**2))
+	print("indirect density: {:.0f}%".format(100 * sum([sum(row) for row in p.matrix_closure]) / len(p.matrix_closure)**2))
 	cycles = 0
 	for i in range(len(p.matrix_closure)):
 		if p.matrix_closure[i][i]:
 			cycles += 1
 	print("cyclic dependencies: {}".format("yes" if cycles > 0 else "no"))
 
-
 main()
-
