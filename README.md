@@ -4,4 +4,5 @@ order to build up a dependency graph. That graph is displayed as an adjacency ma
 closure of the graph is also displayed reflecting the indirect dependencies between parts of a
 codebase. One application of this tool is for analyzing technical debt within a codebase.
 
-![](https://raw.githubusercontent.com/jeremy-rifkin/CPP-Dependency-Analyzer/master/screenshot.png)
+![](screenshots/screenshot1.png)
+![](screenshots/screenshot2.png)
