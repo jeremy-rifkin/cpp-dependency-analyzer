@@ -301,9 +301,9 @@ class Processor:
 				continue
 			self.nodes[file_basename]["dependencies"].add(include_component)
 
-def print_header(p, labels):
+def print_header(matrix, labels):
 	print(" " * 20, end="")
-	for i in range(len(p.matrix)):
+	for i in range(len(matrix)):
 		print(" {}".format(labels[i][0]), end="")
 	print()
 
@@ -317,6 +317,24 @@ def print_matrix(matrix, labels):
 				print("{} ".format("#" if n else "~"), end="")
 		print()
 	print()
+
+def print_graphviz(matrix, labels):
+	print("digraph G {")
+	#print("\tnodesep=0.3;")
+	#print("\tranksep=0.2;")
+	#print("\tnode [shape=circle, fixedsize=true];")
+	#print("\tedge [arrowsize=0.8];")
+	#print("\tlayout=fdp;")
+	for i in range(len(labels)):
+		print("\tn{} [label=\"{}\"];".format(i, labels[i]))
+	print("\t", end="")
+	for i, row in enumerate(matrix):
+		for j, v in enumerate(row):
+			if v:
+				print("n{} -> n{}; ".format(i, j), end="")
+	print()
+	print("}")
+
 
 def main():
 	# <startfile> [search directories]
@@ -341,9 +359,11 @@ def main():
 		print("{:20} {}".format(key, p.nodes[key]))
 	print()
 	labels = [k for k in p.nodes.keys()]
-	print_header(p, labels)
+	print_graphviz(p.matrix, labels)
+	print_graphviz(p.matrix_closure, labels)
+	print_header(p.matrix, labels)
 	print_matrix(p.matrix, labels)
-	print_header(p, labels)
+	print_header(p.matrix_closure, labels)
 	print_matrix(p.matrix_closure, labels)
 	print("direct density: {:.0f}%".format(100 * sum([sum(row) for row in p.matrix]) / len(p.matrix)**2))
 	print("indirect density: {:.0f}%".format(100 * sum([sum(row) for row in p.matrix_closure]) / len(p.matrix_closure)**2))

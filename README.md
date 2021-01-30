@@ -6,3 +6,5 @@ codebase. One application of this tool is for analyzing technical debt within a 
 
 ![](screenshots/screenshot1.png)
 ![](screenshots/screenshot2.png)
+![](screenshots/deps.png)
+![](screenshots/deps_transitive.png)
