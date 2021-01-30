@@ -318,23 +318,29 @@ def print_matrix(matrix, labels):
 		print()
 	print()
 
-def print_graphviz(matrix, labels):
+def print_graphviz(p, labels):
 	print("digraph G {")
+	print_graphviz_from_matrix(p.matrix, "direct dependencies", 0, labels)
+	print_graphviz_from_matrix(p.matrix_closure, "transitive closure", len(labels), labels)
+	print("}")
+
+def print_graphviz_from_matrix(matrix, name, offset, labels):
+	print("\tsubgraph cluster_{} {{".format(name.replace(" ", "_")))
+	print("\t\tlabel=\"{}\";".format(name))
 	#print("\tnodesep=0.3;")
 	#print("\tranksep=0.2;")
 	#print("\tnode [shape=circle, fixedsize=true];")
 	#print("\tedge [arrowsize=0.8];")
 	#print("\tlayout=fdp;")
 	for i in range(len(labels)):
-		print("\tn{} [label=\"{}\"];".format(i, labels[i]))
-	print("\t", end="")
+		print("\t\tn{} [label=\"{}\"];".format(i + offset, labels[i]))
+	print("\t\t", end="")
 	for i, row in enumerate(matrix):
 		for j, v in enumerate(row):
 			if v:
-				print("n{} -> n{}; ".format(i, j), end="")
+				print("n{} -> n{}; ".format(i + offset, j + offset), end="")
 	print()
-	print("}")
-
+	print("\t}")
 
 def main():
 	# <startfile> [search directories]
@@ -359,8 +365,7 @@ def main():
 		print("{:20} {}".format(key, p.nodes[key]))
 	print()
 	labels = [k for k in p.nodes.keys()]
-	print_graphviz(p.matrix, labels)
-	print_graphviz(p.matrix_closure, labels)
+	print_graphviz(p, labels)
 	print_header(p.matrix, labels)
 	print_matrix(p.matrix, labels)
 	print_header(p.matrix_closure, labels)
