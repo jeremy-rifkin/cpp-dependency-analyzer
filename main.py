@@ -320,27 +320,37 @@ def print_matrix(matrix, labels):
 
 def print_graphviz(p, labels):
 	print("digraph G {")
-	print_graphviz_from_matrix(p.matrix, "direct dependencies", 0, labels)
-	print_graphviz_from_matrix(p.matrix_closure, "transitive closure", len(labels), labels)
-	print("}")
-
-def print_graphviz_from_matrix(matrix, name, offset, labels):
-	print("\tsubgraph cluster_{} {{".format(name.replace(" ", "_")))
-	print("\t\tlabel=\"{}\";".format(name))
 	#print("\tnodesep=0.3;")
 	#print("\tranksep=0.2;")
 	#print("\tnode [shape=circle, fixedsize=true];")
 	#print("\tedge [arrowsize=0.8];")
 	#print("\tlayout=fdp;")
+
+	print("\tsubgraph cluster_{} {{".format("direct"))
+	print("\t\tlabel=\"{}\";".format("direct dependencies"))
+	for i in range(len(labels)):
+		print("\t\tn{} [label=\"{}\"];".format(i, labels[i]))
+	print("\t\t", end="")
+	for i, row in enumerate(p.matrix):
+		for j, v in enumerate(row):
+			if v:
+				print("n{}->n{};".format(i, j), end="")
+	print()
+	print("\t}")
+
+	offset = len(labels)
+	print("\tsubgraph cluster_{} {{".format("indirect"))
+	print("\t\tlabel=\"{}\";".format("dependency transitive closure"))
 	for i in range(len(labels)):
 		print("\t\tn{} [label=\"{}\"];".format(i + offset, labels[i]))
 	print("\t\t", end="")
-	for i, row in enumerate(matrix):
+	for i, row in enumerate(p.matrix_closure):
 		for j, v in enumerate(row):
 			if v:
-				print("n{} -> n{}; ".format(i + offset, j + offset), end="")
+				print("n{}->n{}[color={}];".format(i + offset, j + offset, "black" if p.matrix[i][j] else "orange"), end="")
 	print()
 	print("\t}")
+	print("}")
 
 def main():
 	# <startfile> [search directories]
