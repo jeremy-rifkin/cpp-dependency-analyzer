@@ -21,7 +21,7 @@ import sys
 # part of the same node/unit/module. It also assumes that file/node/unit/module names are unique
 # across directories. Furthermore it assumes the file extension of a file has only one segment.
 #
-# This was made by Jeremy Rifkin in November 2020
+# Copyright Jeremy Rifkin 2020-2024
 #
 
 def print_help():
