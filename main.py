@@ -265,7 +265,7 @@ class Analysis:
     def __init__(self):
         self.not_found = set()
         self.visited = set() # set of absolute paths
-        self.queue = []
+        # absolute path -> { i: number, dependencies: list[absolute path]}
         self.nodes = {}
         # self.process_file(file_path)
 
@@ -293,8 +293,10 @@ class Analysis:
         if resolved:
             print("Recursing into {}".format(file_path))
             self.process_file(resolved, search_paths)
+            return resolved
         else:
             self.not_found.add(file_path)
+            return None
 
     def process_file(self, path: str, search_paths: list):
         if path in self.visited:
@@ -303,8 +305,16 @@ class Analysis:
         includes = parse_includes(path)
         # print(path)
         print("    Adding includes:", includes)
+        dependencies = set()
         for include in includes:
-            self.process_include(path, include, search_paths)
+            resolved = self.process_include(path, include, search_paths)
+            if resolved is not None:
+                dependencies.add(resolved)
+
+        self.nodes[path] = {
+            "i": len(self.nodes),
+            "dependencies": dependencies
+        }
 
     def build_matrix(self):
         N = len(self.nodes)
@@ -313,7 +323,8 @@ class Analysis:
             node = self.nodes[key]
             row = node["i"]
             for d in node["dependencies"]:
-                self.matrix[row][self.nodes[d]["i"]] = 1
+                if d in self.nodes:
+                    self.matrix[row][self.nodes[d]["i"]] = 1
         # deep copy
         self.matrix_closure = [[col for col in row] for row in self.matrix]
         G = self.matrix_closure
@@ -322,6 +333,57 @@ class Analysis:
             for i in range(N):
                 for j in range(N):
                     G[i][j] = G[i][j] or (G[i][k] and G[k][j])
+
+def print_header(matrix, labels):
+    print(" " * 20, end="")
+    for i in range(len(matrix)):
+        print(" {}".format(labels[i][0]), end="")
+    print()
+
+def print_matrix(matrix, labels):
+    for i, row in enumerate(matrix):
+        print("{:>20} ".format(labels[i]), end="")
+        for j, n in enumerate(row):
+            if i == j:
+                print("{}{}{} ".format(colorama.Fore.BLUE, "#" if n else "~", colorama.Style.RESET_ALL), end="")
+            else:
+                print("{} ".format("#" if n else "~"), end="")
+        print()
+    print()
+
+def print_graphviz(p, labels):
+    print("digraph G {")
+    #print("\tnodesep=0.3;")
+    #print("\tranksep=0.2;")
+    #print("\tnode [shape=circle, fixedsize=true];")
+    #print("\tedge [arrowsize=0.8];")
+    #print("\tlayout=fdp;")
+
+    print("\tsubgraph cluster_{} {{".format("direct"))
+    print("\t\tlabel=\"{}\";".format("direct dependencies"))
+    for i in range(len(labels)):
+        print("\t\tn{} [label=\"{}\"];".format(i, os.path.basename(labels[i])))
+    print("\t\t", end="")
+    for i, row in enumerate(p.matrix):
+        for j, v in enumerate(row):
+            if v:
+                print("n{}->n{};".format(i, j), end="")
+    print()
+    print("\t}")
+
+    offset = len(labels)
+    print("\tsubgraph cluster_{} {{".format("indirect"))
+    print("\t\tlabel=\"{}\";".format("dependency transitive closure"))
+    for i in range(len(labels)):
+        print("\t\tn{} [label=\"{}\"];".format(i + offset, os.path.basename(labels[i])))
+    print("\t\t", end="")
+    for i, row in enumerate(p.matrix_closure):
+        for j, v in enumerate(row):
+            if v:
+                print("n{}->n{}[color={}];".format(i + offset, j + offset, "black" if p.matrix[i][j] else "orange"), end="")
+    print()
+    print("\t}")
+    print("}")
 
 def parse_search_paths(command: str) -> list:
     paths = [x.group(1) for x in re.finditer(r"-I([^ ]+)", command)]
@@ -373,25 +435,29 @@ def main():
     # init_lexer()
     # p = Processor(root)
 
-    # # this is mainly for dev/debugging; make sure no components are missed in traversal
-    # #print("visited: ", p.visited)
-    # #print("all: ", p.all_files)
+    # this is mainly for dev/debugging; make sure no components are missed in traversal
+    #print("visited: ", p.visited)
+    #print("all: ", p.all_files)
     # print("xor: ", p.all_files ^ p.visited)
-    # for key in p.nodes:
-    #     print("{:20} {}".format(key, p.nodes[key]))
-    # print()
-    # labels = [k for k in p.nodes.keys()]
-    # print_graphviz(p, labels)
-    # print_header(p.matrix, labels)
-    # print_matrix(p.matrix, labels)
-    # print_header(p.matrix_closure, labels)
-    # print_matrix(p.matrix_closure, labels)
-    # print("direct density: {:.0f}%".format(100 * sum([sum(row) for row in p.matrix]) / len(p.matrix)**2))
-    # print("indirect density: {:.0f}%".format(100 * sum([sum(row) for row in p.matrix_closure]) / len(p.matrix_closure)**2))
-    # cycles = 0
-    # for i in range(len(p.matrix_closure)):
-    #     if p.matrix_closure[i][i]:
-    #         cycles += 1
-    # print("cyclic dependencies: {}".format("yes" if cycles > 0 else "no"))
+    print("missed:", analysis.not_found)
+    for key in analysis.nodes:
+        print("{:20} {}".format(key, analysis.nodes[key]))
+    print()
+
+    analysis.build_matrix()
+
+    labels = [k for k in analysis.nodes.keys()]
+    print_graphviz(analysis, labels)
+    print_header(analysis.matrix, labels)
+    print_matrix(analysis.matrix, labels)
+    print_header(analysis.matrix_closure, labels)
+    print_matrix(analysis.matrix_closure, labels)
+    print("direct density: {:.0f}%".format(100 * sum([sum(row) for row in analysis.matrix]) / len(analysis.matrix)**2))
+    print("indirect density: {:.0f}%".format(100 * sum([sum(row) for row in analysis.matrix_closure]) / len(analysis.matrix_closure)**2))
+    cycles = 0
+    for i in range(len(analysis.matrix_closure)):
+        if analysis.matrix_closure[i][i]:
+            cycles += 1
+    print("cyclic dependencies: {}".format("yes" if cycles > 0 else "no"))
 
 main()
