@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import json
+import math
 
 #
 # This is a tool to analyze dependencies within a codebase.
@@ -356,7 +357,21 @@ def print_matrix(matrix, labels):
         print()
     print()
 
-def print_graphviz(analysis, labels):
+def count_incident_edges(matrix, labels, tu_only=False):
+    counts = {} # label -> count
+    for col in range(len(matrix)):
+        for row in range(len(matrix)):
+            # if the row is not a .c/.cpp file, it's a header so ignore it
+            if tu_only and not (labels[row].endswith(".cpp") or labels[row].endswith(".c")):
+                continue
+            if matrix[row][col]:
+                if labels[col] in counts:
+                    counts[labels[col]] += 1
+                else:
+                    counts[labels[col]] = 1
+    return counts
+
+def print_graphviz(analysis: Analysis, labels: list):
     print("digraph G {")
     #print("\tnodesep=0.3;")
     #print("\tranksep=0.2;")
@@ -364,10 +379,19 @@ def print_graphviz(analysis, labels):
     #print("\tedge [arrowsize=0.8];")
     #print("\tlayout=fdp;")
 
+    # counts = count_incident_edges(analysis.matrix, labels, True)
+    counts = count_incident_edges(analysis.matrix_closure, labels, True)
+    max_count = max(counts.values())
+    def get_count_color(label: str):
+        if label in counts:
+            return min(int(math.floor((counts[label] / max_count) * 9)) + 1, 9)
+        else:
+            return "white"
     print("\tsubgraph cluster_{} {{".format("direct"))
+    print("\t\tnode [colorscheme=reds9] # Apply colorscheme to all nodes")
     print("\t\tlabel=\"{}\";".format("direct dependencies"))
     for i in range(len(labels)):
-        print("\t\tn{} [label=\"{}\"];".format(i, os.path.basename(labels[i])))
+        print("\t\tn{} [label=\"{}\", fillcolor={}, style=\"filled,solid\"];".format(i, os.path.basename(labels[i]), get_count_color(labels[i])))
     print("\t\t", end="")
     for i, row in enumerate(analysis.matrix):
         for j, v in enumerate(row):
@@ -377,10 +401,18 @@ def print_graphviz(analysis, labels):
     print("\t}")
 
     offset = len(labels)
+    # counts = count_incident_edges(analysis.matrix_closure, labels, True)
+    # max_count = max(counts.values())
+    # def get_count_color(label: str):
+    #     if label in counts:
+    #         return min(int(math.floor((counts[label] / max_count) * 10)), 9)
+    #     else:
+    #         return "white"
     print("\tsubgraph cluster_{} {{".format("indirect"))
+    print("\t\tnode [colorscheme=reds9] # Apply colorscheme to all nodes")
     print("\t\tlabel=\"{}\";".format("dependency transitive closure"))
     for i in range(len(labels)):
-        print("\t\tn{} [label=\"{}\"];".format(i + offset, os.path.basename(labels[i])))
+        print("\t\tn{} [label=\"{}\", fillcolor={}, style=\"filled,solid\"];".format(i + offset, os.path.basename(labels[i]), get_count_color(labels[i])))
     print("\t\t", end="")
     for i, row in enumerate(analysis.matrix_closure):
         for j, v in enumerate(row):
@@ -476,5 +508,25 @@ def main():
         if analysis.matrix_closure[i][i]:
             cycles += 1
     print("cyclic dependencies: {}".format("yes" if cycles > 0 else "no"))
+
+    matrix_counts = count_incident_edges(analysis.matrix, labels)
+    print("Dependency counts:")
+    for name, count in matrix_counts.items():
+        print(os.path.basename(name), count)
+
+    matrix_closure_counts = count_incident_edges(analysis.matrix_closure, labels)
+    print("Transitive dependency counts:")
+    for name, count in matrix_closure_counts.items():
+        print(os.path.basename(name), count)
+
+    matrix_counts = count_incident_edges(analysis.matrix, labels, True)
+    print("Dependency counts (TU-only):")
+    for name, count in matrix_counts.items():
+        print(os.path.basename(name), count)
+
+    matrix_closure_counts = count_incident_edges(analysis.matrix_closure, labels, True)
+    print("Transitive dependency counts (TU-only):")
+    for name, count in matrix_closure_counts.items():
+        print(os.path.basename(name), count)
 
 main()
