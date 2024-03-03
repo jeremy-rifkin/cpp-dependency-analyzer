@@ -340,9 +340,9 @@ class Analysis:
                     G[i][j] = G[i][j] or (G[i][k] and G[k][j])
 
 def print_header(matrix, labels):
-    print(" " * 20, end="")
+    print(" " * 50, end="")
     for i in range(len(matrix)):
-        print(" {}".format(labels[i][0]), end="")
+        print(" {}".format(os.path.basename(labels[i])[0]), end="")
     print()
 
 def print_matrix(matrix, labels):

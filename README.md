@@ -4,11 +4,13 @@ order to build up a dependency graph. That graph is displayed as an adjacency ma
 closure of the graph is also displayed reflecting the indirect dependencies between parts of a
 codebase. One application of this tool is for analyzing technical debt within a codebase.
 
-![](screenshots/screenshot1.png)
-![](screenshots/screenshot2.png)
-![](screenshots/deps3.png)
-![](screenshots/deps.png)
-![](screenshots/deps_transitive.png)
+![](screenshots/matrix.png)
+
+![](screenshots/direct_deps.png)
+
+![](screenshots/indirect_deps.png)
+
+Nodes are colored based on how many translation units (.c or .cpp files) transitively include a given header.
 
 Usage:
 ```
