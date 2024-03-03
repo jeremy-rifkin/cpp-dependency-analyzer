@@ -9,3 +9,8 @@ codebase. One application of this tool is for analyzing technical debt within a 
 ![](screenshots/deps3.png)
 ![](screenshots/deps.png)
 ![](screenshots/deps_transitive.png)
+
+Usage:
+```
+python3 main.py --compile-commands COMPILE_COMMANDS [--exclude EXCLUDE]
+```

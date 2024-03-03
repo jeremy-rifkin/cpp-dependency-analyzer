@@ -112,7 +112,7 @@ def init_lexer():
     #     pattern = lexer_rules[i + 1]
     for name, pattern in lexer_rules:
         lexer_regex += ("" if lexer_regex == "" else "|") + "(?P<{}>{})".format(name, pattern)
-    print(lexer_regex)
+    # print(lexer_regex)
     lexer_regex = re.compile(lexer_regex)
 init_lexer()
 
