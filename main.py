@@ -262,7 +262,8 @@ def parse_includes(path: str) -> list:
     return includes
 
 class Analysis:
-    def __init__(self):
+    def __init__(self, excludes: list):
+        self.excludes = excludes
         self.not_found = set()
         self.visited = set() # set of absolute paths
         # absolute path -> { i: number, dependencies: list[absolute path]}
@@ -301,6 +302,9 @@ class Analysis:
     def process_file(self, path: str, search_paths: list):
         if path in self.visited:
             return
+        for exclude in self.excludes:
+            if path.startswith(exclude):
+                return
         self.visited.add(path)
         includes = parse_includes(path)
         # print(path)
@@ -341,17 +345,18 @@ def print_header(matrix, labels):
     print()
 
 def print_matrix(matrix, labels):
+    color = os.isatty(1)
     for i, row in enumerate(matrix):
-        print("{:>20} ".format(labels[i]), end="")
+        print("{:>50} ".format(os.path.basename(labels[i])), end="")
         for j, n in enumerate(row):
             if i == j:
-                print("{}{}{} ".format(colorama.Fore.BLUE, "#" if n else "~", colorama.Style.RESET_ALL), end="")
+                print("{}{}{} ".format(colorama.Fore.BLUE if color else "", "#" if n else "~", colorama.Style.RESET_ALL if color else ""), end="")
             else:
                 print("{} ".format("#" if n else "~"), end="")
         print()
     print()
 
-def print_graphviz(p, labels):
+def print_graphviz(analysis, labels):
     print("digraph G {")
     #print("\tnodesep=0.3;")
     #print("\tranksep=0.2;")
@@ -364,7 +369,7 @@ def print_graphviz(p, labels):
     for i in range(len(labels)):
         print("\t\tn{} [label=\"{}\"];".format(i, os.path.basename(labels[i])))
     print("\t\t", end="")
-    for i, row in enumerate(p.matrix):
+    for i, row in enumerate(analysis.matrix):
         for j, v in enumerate(row):
             if v:
                 print("n{}->n{};".format(i, j), end="")
@@ -377,10 +382,10 @@ def print_graphviz(p, labels):
     for i in range(len(labels)):
         print("\t\tn{} [label=\"{}\"];".format(i + offset, os.path.basename(labels[i])))
     print("\t\t", end="")
-    for i, row in enumerate(p.matrix_closure):
+    for i, row in enumerate(analysis.matrix_closure):
         for j, v in enumerate(row):
             if v:
-                print("n{}->n{}[color={}];".format(i + offset, j + offset, "black" if p.matrix[i][j] else "orange"), end="")
+                print("n{}->n{}[color={}];".format(i + offset, j + offset, "black" if analysis.matrix[i][j] else "orange"), end="")
     print()
     print("\t}")
     print("}")
@@ -416,7 +421,19 @@ def main():
     #     "--pwd",
     #     type=dir_path,
     # )
+    parser.add_argument('--exclude', action='append', nargs=1)
     args = parser.parse_args()
+
+    excludes = []
+    if args.exclude:
+        # print(args.exclude)
+        for exclude in args.exclude:
+            abspath = os.path.abspath(exclude[0])
+            if os.path.isdir(abspath):
+                excludes.append(abspath + os.path.sep)
+            else:
+                excludes.append(abspath)
+    print(excludes)
 
     # if args.pwd:
     #     os.chdir(args.pwd)
@@ -424,7 +441,7 @@ def main():
     with open(args.compile_commands, "r") as f:
         compile_commands = json.load(f)
 
-    analysis = Analysis()
+    analysis = Analysis(excludes)
 
     for entry in compile_commands:
         os.chdir(entry["directory"])
