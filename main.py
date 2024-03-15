@@ -263,8 +263,9 @@ def parse_includes(path: str) -> list:
     return includes
 
 class Analysis:
-    def __init__(self, excludes: list):
+    def __init__(self, excludes: list, sentinels: list):
         self.excludes = excludes
+        self.sentinels = sentinels
         self.not_found = set()
         self.visited = set() # set of absolute paths
         # absolute path -> { i: number, dependencies: list[absolute path]}
@@ -315,6 +316,13 @@ class Analysis:
             resolved = self.process_include(path, include, search_paths)
             if resolved is not None:
                 dependencies.add(resolved)
+            elif include in self.sentinels:
+                if include not in self.nodes:
+                    self.nodes[include] = {
+                        "i": len(self.nodes),
+                        "dependencies": set()
+                    }
+                dependencies.add(include)
 
         self.nodes[path] = {
             "i": len(self.nodes),
@@ -454,6 +462,7 @@ def main():
     #     type=dir_path,
     # )
     parser.add_argument('--exclude', action='append', nargs=1)
+    parser.add_argument('--sentinel', action='append', nargs=1)
     args = parser.parse_args()
 
     excludes = []
@@ -465,7 +474,10 @@ def main():
                 excludes.append(abspath + os.path.sep)
             else:
                 excludes.append(abspath)
-    print(excludes)
+    sentinels = []
+    if args.sentinel:
+        sentinels = [s[0] for s in args.sentinel]
+    print(excludes, sentinels)
 
     # if args.pwd:
     #     os.chdir(args.pwd)
@@ -473,7 +485,7 @@ def main():
     with open(args.compile_commands, "r") as f:
         compile_commands = json.load(f)
 
-    analysis = Analysis(excludes)
+    analysis = Analysis(excludes, sentinels)
 
     for entry in compile_commands:
         os.chdir(entry["directory"])
