@@ -513,6 +513,7 @@ def main():
     print_matrix(analysis.matrix, labels)
     print_header(analysis.matrix_closure, labels)
     print_matrix(analysis.matrix_closure, labels)
+    print("translation units: {}".format(len(compile_commands)))
     print("direct density: {:.0f}%".format(100 * sum([sum(row) for row in analysis.matrix]) / len(analysis.matrix)**2))
     print("indirect density: {:.0f}%".format(100 * sum([sum(row) for row in analysis.matrix_closure]) / len(analysis.matrix_closure)**2))
     cycles = 0
@@ -520,25 +521,33 @@ def main():
         if analysis.matrix_closure[i][i]:
             cycles += 1
     print("cyclic dependencies: {}".format("yes" if cycles > 0 else "no"))
+    print()
+    print()
 
     matrix_counts = count_incident_edges(analysis.matrix, labels)
     print("Dependency counts:")
-    for name, count in matrix_counts.items():
+    for name, count in sorted(matrix_counts.items(), key=lambda x: x[1], reverse=True):
         print(os.path.basename(name), count)
 
+    print()
+    print()
     matrix_closure_counts = count_incident_edges(analysis.matrix_closure, labels)
     print("Transitive dependency counts:")
-    for name, count in matrix_closure_counts.items():
+    for name, count in sorted(matrix_closure_counts.items(), key=lambda x: x[1], reverse=True):
         print(os.path.basename(name), count)
 
+    print()
+    print()
     matrix_counts = count_incident_edges(analysis.matrix, labels, True)
     print("Dependency counts (TU-only):")
-    for name, count in matrix_counts.items():
+    for name, count in sorted(matrix_counts.items(), key=lambda x: x[1], reverse=True):
         print(os.path.basename(name), count)
 
+    print()
+    print()
     matrix_closure_counts = count_incident_edges(analysis.matrix_closure, labels, True)
     print("Transitive dependency counts (TU-only):")
-    for name, count in matrix_closure_counts.items():
+    for name, count in sorted(matrix_closure_counts.items(), key=lambda x: x[1], reverse=True):
         print(os.path.basename(name), count)
 
 main()
