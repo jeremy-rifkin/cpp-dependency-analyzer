@@ -14,5 +14,9 @@ Nodes are colored based on how many translation units (.c or .cpp files) transit
 
 Usage:
 ```
-python3 main.py --compile-commands COMPILE_COMMANDS [--exclude EXCLUDE]
+python3 main.py --compile-commands COMPILE_COMMANDS [--exclude EXCLUDE] [--sentinel SENTINEL]
 ```
+
+By default the script will transitively walk all include headers it can resolve, either based on local resolution rules
+or paths specified with `-I` flags in compile_commands.json. If you want to see the includes for an unresolved library
+include, e.g. `fmt/format.h`, pass `--sentinel fmt/format.h`.
