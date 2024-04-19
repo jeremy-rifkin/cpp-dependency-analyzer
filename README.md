@@ -1,3 +1,7 @@
+This project is now mostly folded into https://github.com/jeremy-rifkin/build-blame
+
+---
+
 This is a small static analysis project to analyze dependency graphs in C/C++ programs. Based off of
 a main file in a codebase, this tool will automatically parse, resolve, and traverse includes in
 order to build up a dependency graph. That graph is displayed as an adjacency matrix. The transitive
